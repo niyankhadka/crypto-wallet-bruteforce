@@ -1,2 +1,2 @@
-aiohttp==3.12.14
+aiohttp==3.13.4
 bip_utils==2.9.2
