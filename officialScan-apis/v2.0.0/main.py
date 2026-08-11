@@ -15,8 +15,14 @@ from utils import (
     run_checks,
     clear_console,
     print_status,
-    print_separator
+    print_separator,
+    setup_logger,
+    log_wallet_found,
+    log_session_start,
+    log_session_end
 )
+
+logger = setup_logger()
 
 
 def main():
@@ -36,7 +42,10 @@ def main():
     print_status("Validating configuration...", symbol="✅")
     if not validate_config(config_path):
         print_status("Environment setup is incomplete. Please resolve the issues in the configuration file.", symbol="❌")
+        logger.error("Configuration validation failed. Setup incomplete.")
         return
+    
+    log_session_start(logger, config_path)
 
     # Start the continuous checking loop
     checked_counter = 1
@@ -84,9 +93,27 @@ def main():
             print_status("Re-checking internet connection before API requests...", symbol="🌐")
             wait_for_internet()
 
-            # Step 10: Check balances and save if found
+            # Step 10: Check balances and save if found (with retry logic)
             api_start_time = time.time()
-            balances_found = asyncio.run(run_checks(derived_addresses, mnemonic))
+            max_retries = 3
+            retry_count = 0
+            balances_found = False
+            
+            while retry_count < max_retries:
+                try:
+                    balances_found = asyncio.run(run_checks(derived_addresses, mnemonic))
+                    break  # Success, exit retry loop
+                except Exception as e:
+                    retry_count += 1
+                    if retry_count < max_retries:
+                        wait_time = 2 ** retry_count  # Exponential backoff: 2, 4, 8 seconds
+                        print(f"⚠️  API check failed (attempt {retry_count}/{max_retries}): {e}")
+                        print(f"⏳ Retrying in {wait_time} seconds...")
+                        time.sleep(wait_time)
+                    else:
+                        print(f"❌ API check failed after {max_retries} attempts: {e}")
+                        balances_found = False
+            
             api_end_time = time.time()
             last_api_check_duration = timedelta(seconds=(api_end_time - api_start_time))
 
@@ -94,6 +121,7 @@ def main():
             if balances_found:
                 last_balance_status = "Balance Found!"
                 total_balances_found += 1
+                logger.warning(f"🎉 WALLET WITH BALANCE FOUND! Mnemonic: {mnemonic}")
             else:
                 last_balance_status = "No balance found"
 
@@ -109,6 +137,7 @@ def main():
         total_run_time = timedelta(seconds=(time.time() - script_start_time))
         print_status(f"Total script runtime: {total_run_time}", symbol="⏱️")
         print_status(f"Total balances found during the session: {total_balances_found}", symbol="📊")
+        log_session_end(logger, checked_counter - 1, total_balances_found, total_run_time)
 
 
 if __name__ == "__main__":

@@ -23,5 +23,6 @@ from .mnemonic_generator import (
     print_derived_addresses 
 )
 from .api_requests import run_checks
+from .logger import setup_logger, log_wallet_found, log_session_start, log_session_end
 
 UTILS_VERSION = "1.0.0"

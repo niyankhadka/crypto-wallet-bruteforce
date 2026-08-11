@@ -32,7 +32,8 @@ def set_active_config(config_path):
 
 def setup_config():
     """Setup configuration for API keys, token networks, mnemonic, and address count."""
-    config_folder = "config_setups"
+    # Use absolute path for config folder
+    config_folder = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "config_setups")
     os.makedirs(config_folder, exist_ok=True)
 
     existing_setups = [f for f in os.listdir(config_folder) if f.endswith(".ini") and f != "active_setup.ini"]
